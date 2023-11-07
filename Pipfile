@@ -6,6 +6,7 @@ name = "pypi"
 [packages]
 web3 = "*"
 base58 = "*"
+pynacl = "*"
 
 [dev-packages]
 

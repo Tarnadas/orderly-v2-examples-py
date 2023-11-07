@@ -5,13 +5,14 @@ from base58 import b58encode
 import requests
 
 from eth_account import Account, messages
-from web3 import Web3
+from nacl.signing import SigningKey
 
 from config import BASE_URL, BROKER_ID, CHAIN_ID
 from eip712 import MESSAGE_TYPES, OFF_CHAIN_DOMAIN
+from util import encode_key
 
 
-def register_account(account: Account):
+def register_account(account: Account) -> str:
     res = requests.get("%s/v1/registration_nonce" % BASE_URL)
     response = json.loads(res.text)
     registration_nonce = response["data"]["registration_nonce"]
@@ -50,10 +51,7 @@ def register_account(account: Account):
 
 
 def add_access_key(account: Account):
-    w3 = Web3()
-    key = w3.eth.account.create().key
-
-    orderly_key = "ed25519:%s" % b58encode(key).decode("utf-8")
+    orderly_key = SigningKey.generate()
 
     d = datetime.utcnow()
     epoch = datetime(1970, 1, 1)
@@ -62,8 +60,8 @@ def add_access_key(account: Account):
     add_key_message = {
         "brokerId": BROKER_ID,
         "chainId": CHAIN_ID,
-        "orderlyKey": orderly_key,
-        "scope": "trading",
+        "orderlyKey": encode_key(orderly_key.verify_key._key),
+        "scope": "read,trading",
         "timestamp": timestamp,
         "expiration": timestamp + 1_000 * 60 * 60 * 24 * 365,  # 1 year
     }
@@ -85,6 +83,6 @@ def add_access_key(account: Account):
         },
     )
     response = json.loads(res.text)
-    print("register_account:", response)
+    print("add_access_key:", response)
 
-    return response["data"]["orderly_key"]
+    return orderly_key

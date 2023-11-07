@@ -4,7 +4,9 @@ import requests
 
 from eth_account import Account
 
+from account import get_client_holding
 from config import BASE_URL, BROKER_ID
+from faucet import mint_test_usdc
 from register import add_access_key, register_account
 
 account: Account = Account.from_key(os.environ.get("PRIVATE_KEY"))
@@ -17,11 +19,14 @@ response = json.loads(res.text)
 print("get_account reponse:", response)
 
 if response["success"]:
-    account_id = response["data"]["account_id"]
+    orderly_account_id: str = response["data"]["account_id"]
 else:
-    account_id = register_account(account)
+    orderly_account_id = register_account(account)
 
-print("account_id:", account_id)
+print("account_id:", orderly_account_id)
 
 orderly_key = add_access_key(account)
-print("orderly_key:", orderly_key)
+
+get_client_holding(orderly_account_id, orderly_key)
+
+# mint_test_usdc(account)
