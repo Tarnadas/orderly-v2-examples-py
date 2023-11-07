@@ -4,32 +4,31 @@ import json
 import math
 import requests
 
-from nacl.encoding import URLSafeBase64Encoder
-from nacl.signing import SigningKey
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from config import BASE_URL
 from util import encode_key
 
 
-def get_client_holding(orderly_account_id: str, orderly_key: SigningKey):
+def get_client_holding(orderly_account_id: str, orderly_key: Ed25519PrivateKey):
     d = datetime.utcnow()
     epoch = datetime(1970, 1, 1)
     timestamp = math.trunc((d - epoch).total_seconds() * 1_000)
 
+    print(encode_key(orderly_key.private_bytes_raw()))
+
     message = str(timestamp) + "GET" + "/v1/client/holding"
-    print(message)
-    orderly_signature = orderly_key.sign(
-        message.encode(), encoder=URLSafeBase64Encoder
+    orderly_signature = base64.urlsafe_b64encode(
+        orderly_key.sign(message.encode())
     ).decode("utf-8")
-    print(orderly_signature)
 
     res = requests.get(
         "%s/v1/client/holding" % BASE_URL,
         headers={
-            # "Content-Type": "application/x-www-form-urlencoded",
+            "Content-Type": "application/x-www-form-urlencoded",
             "orderly-timestamp": str(timestamp),
             "orderly-account-id": orderly_account_id,
-            "orderly-key": encode_key(orderly_key.verify_key._key),
+            "orderly-key": encode_key(orderly_key.public_key().public_bytes_raw()),
             "orderly-signature": orderly_signature,
         },
         # params={
@@ -38,3 +37,5 @@ def get_client_holding(orderly_account_id: str, orderly_key: SigningKey):
     )
     response = json.loads(res.text)
     print("get_client_holding:", response)
+
+    return response["data"]["holding"]

@@ -4,8 +4,8 @@ import math
 from base58 import b58encode
 import requests
 
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from eth_account import Account, messages
-from nacl.signing import SigningKey
 
 from config import BASE_URL, BROKER_ID, CHAIN_ID
 from eip712 import MESSAGE_TYPES, OFF_CHAIN_DOMAIN
@@ -50,8 +50,8 @@ def register_account(account: Account) -> str:
     return response["data"]["account_id"]
 
 
-def add_access_key(account: Account):
-    orderly_key = SigningKey.generate()
+def add_access_key(account: Account) -> Ed25519PrivateKey:
+    orderly_key = Ed25519PrivateKey.generate()
 
     d = datetime.utcnow()
     epoch = datetime(1970, 1, 1)
@@ -60,7 +60,7 @@ def add_access_key(account: Account):
     add_key_message = {
         "brokerId": BROKER_ID,
         "chainId": CHAIN_ID,
-        "orderlyKey": encode_key(orderly_key.verify_key._key),
+        "orderlyKey": encode_key(orderly_key.public_key().public_bytes_raw()),
         "scope": "read,trading",
         "timestamp": timestamp,
         "expiration": timestamp + 1_000 * 60 * 60 * 24 * 365,  # 1 year

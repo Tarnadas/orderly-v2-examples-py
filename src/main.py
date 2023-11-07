@@ -27,6 +27,6 @@ print("account_id:", orderly_account_id)
 
 orderly_key = add_access_key(account)
 
-get_client_holding(orderly_account_id, orderly_key)
+holding = get_client_holding(orderly_account_id, orderly_key)
 
 # mint_test_usdc(account)
