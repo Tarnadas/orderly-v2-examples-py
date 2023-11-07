@@ -45,3 +45,9 @@ OFF_CHAIN_DOMAIN = {
     "chainId": CHAIN_ID,
     "verifyingContract": "0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC",
 }
+ON_CHAIN_DOMAIN = {
+    "name": "Orderly",
+    "version": "1",
+    "chainId": CHAIN_ID,
+    "verifyingContract": "0x1826B75e2ef249173FC735149AE4B8e9ea10abff",
+}

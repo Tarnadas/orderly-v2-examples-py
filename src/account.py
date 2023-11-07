@@ -15,8 +15,6 @@ def get_client_holding(orderly_account_id: str, orderly_key: Ed25519PrivateKey):
     epoch = datetime(1970, 1, 1)
     timestamp = math.trunc((d - epoch).total_seconds() * 1_000)
 
-    print(encode_key(orderly_key.private_bytes_raw()))
-
     message = str(timestamp) + "GET" + "/v1/client/holding"
     orderly_signature = base64.urlsafe_b64encode(
         orderly_key.sign(message.encode())
@@ -31,9 +29,6 @@ def get_client_holding(orderly_account_id: str, orderly_key: Ed25519PrivateKey):
             "orderly-key": encode_key(orderly_key.public_key().public_bytes_raw()),
             "orderly-signature": orderly_signature,
         },
-        # params={
-        #     "all": "false",
-        # },
     )
     response = json.loads(res.text)
     print("get_client_holding:", response)

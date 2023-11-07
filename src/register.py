@@ -1,7 +1,6 @@
 from datetime import datetime
 import json
 import math
-from base58 import b58encode
 import requests
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
