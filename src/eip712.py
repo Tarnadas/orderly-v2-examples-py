@@ -1,6 +1,3 @@
-from config import CHAIN_ID
-
-
 MESSAGE_TYPES = {
     "EIP712Domain": [
         {"name": "name", "type": "string"},
@@ -39,15 +36,20 @@ MESSAGE_TYPES = {
     ],
 }
 
-OFF_CHAIN_DOMAIN = {
-    "name": "Orderly",
-    "version": "1",
-    "chainId": CHAIN_ID,
-    "verifyingContract": "0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC",
-}
-ON_CHAIN_DOMAIN = {
-    "name": "Orderly",
-    "version": "1",
-    "chainId": CHAIN_ID,
-    "verifyingContract": "0x1826B75e2ef249173FC735149AE4B8e9ea10abff",
-}
+
+def get_off_chain_domain(chain_id: str):
+    return {
+        "name": "Orderly",
+        "version": "1",
+        "chainId": chain_id,
+        "verifyingContract": "0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC",
+    }
+
+
+def get_on_chain_domain(chain_id: str):
+    return {
+        "name": "Orderly",
+        "version": "1",
+        "chainId": chain_id,
+        "verifyingContract": "0x1826B75e2ef249173FC735149AE4B8e9ea10abff",
+    }

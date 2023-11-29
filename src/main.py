@@ -4,32 +4,25 @@ import requests
 
 from eth_account import Account
 
-from account import get_client_holding
-from config import BASE_URL, BROKER_ID
+from client import Client
+from config import Config
 from faucet import mint_test_usdc
-from order import create_order, get_orders
-from pnl import settle_nonce, settle_pnl
-from register import add_access_key, register_account
+from order import OrderType, Side
+
 
 account: Account = Account.from_key(os.environ.get("PRIVATE_KEY"))
 print("Address:", account.address)
 
-res = requests.get(
-    "%s/v1/get_account?address=%s&broker_id=%s" % (BASE_URL, account.address, BROKER_ID)
-)
-response = json.loads(res.text)
-print("get_account reponse:", response)
+config = Config()
 
-if response["success"]:
-    orderly_account_id: str = response["data"]["account_id"]
-else:
-    orderly_account_id = register_account(account)
+client = Client(config, account)
 
-print("account_id:", orderly_account_id)
+symbols = client.public.get_symbols()
+print("symbols:", symbols)
 
-orderly_key = add_access_key(account)
+client.create_new_access_key()
 
-holding = get_client_holding(orderly_account_id, orderly_key)
+holding = client.account.get_client_holding()
 
 hasUSDC = any(
     list(
@@ -39,15 +32,12 @@ hasUSDC = any(
     )
 )
 if not hasUSDC:
-    mint_test_usdc(account)
+    mint_test_usdc(config, account)
 
-res = requests.get("%s/v1/public/info" % BASE_URL)
-response = json.loads(res.text)
-symbols = response["data"]["rows"]
+orders = client.order.get_orders()
+print("get_orders:", orders)
 
-get_orders(orderly_account_id, orderly_key)
+res = client.order.create_order("PERP_ETH_USDC", OrderType.MARKET, 0.01, Side.BUY)
+print("create_order:", res)
 
-create_order(orderly_account_id, orderly_key)
-
-nonce = settle_nonce(orderly_account_id, orderly_key)
-settle_pnl(orderly_account_id, orderly_key, account, nonce)
+client.pnl.settle_pnl()

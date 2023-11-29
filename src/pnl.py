@@ -5,84 +5,72 @@ import math
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from eth_account import Account, messages
-import requests
+from requests import Request, Session
 
-from config import BASE_URL, BROKER_ID, CHAIN_ID
-from eip712 import MESSAGE_TYPES, ON_CHAIN_DOMAIN
+from config import Config
+from eip712 import MESSAGE_TYPES, get_on_chain_domain
+from signer import Signer
 from util import encode_key
 
 
-def settle_nonce(orderly_account_id: str, orderly_key: Ed25519PrivateKey) -> str:
-    d = datetime.utcnow()
-    epoch = datetime(1970, 1, 1)
-    timestamp = math.trunc((d - epoch).total_seconds() * 1_000)
+class PnL(object):
+    def __init__(
+        self,
+        config: Config,
+        session: Session,
+        signer: Signer,
+        account: Account,
+    ) -> None:
+        self._config = config
+        self._session = session
+        self._signer = signer
+        self._account = account
 
-    message = str(timestamp) + "GET" + "/v1/settle_nonce"
-    orderly_signature = base64.urlsafe_b64encode(
-        orderly_key.sign(message.encode())
-    ).decode("utf-8")
+    def settle_nonce(self) -> str:
+        req = self._signer.sign_request(
+            Request("GET", "%s/v1/settle_nonce" % self._config.base_url)
+        )
+        res = self._session.send(req)
+        response = json.loads(res.text)
+        print("settle_nonce:", response)
 
-    res = requests.get(
-        "%s/v1/settle_nonce" % BASE_URL,
-        headers={
-            "Content-Type": "application/x-www-form-urlencoded",
-            "orderly-timestamp": str(timestamp),
-            "orderly-account-id": orderly_account_id,
-            "orderly-key": encode_key(orderly_key.public_key().public_bytes_raw()),
-            "orderly-signature": orderly_signature,
-        },
-    )
-    response = json.loads(res.text)
-    print("settle_nonce:", response)
+        return response["data"]["settle_nonce"]
 
-    return response["data"]["settle_nonce"]
+    def settle_pnl(self):
+        nonce = self.settle_nonce()
 
+        d = datetime.utcnow()
+        epoch = datetime(1970, 1, 1)
+        timestamp = math.trunc((d - epoch).total_seconds() * 1_000)
 
-def settle_pnl(
-    orderly_account_id: str,
-    orderly_key: Ed25519PrivateKey,
-    account: Account,
-    nonce: str,
-):
-    d = datetime.utcnow()
-    epoch = datetime(1970, 1, 1)
-    timestamp = math.trunc((d - epoch).total_seconds() * 1_000)
+        register_message = {
+            "brokerId": self._config.broker_id,
+            "chainId": self._config.chain_id,
+            "timestamp": timestamp,
+            "settleNonce": nonce,
+        }
 
-    register_message = {
-        "brokerId": BROKER_ID,
-        "chainId": CHAIN_ID,
-        "timestamp": timestamp,
-        "settleNonce": nonce,
-    }
+        encoded_data = messages.encode_typed_data(
+            domain_data=get_on_chain_domain(self._config.chain_id),
+            message_types={"SettlePnl": MESSAGE_TYPES["SettlePnl"]},
+            message_data=register_message,
+        )
+        signed_message = self._account.sign_message(encoded_data)
 
-    encoded_data = messages.encode_typed_data(
-        domain_data=ON_CHAIN_DOMAIN,
-        message_types={"SettlePnl": MESSAGE_TYPES["SettlePnl"]},
-        message_data=register_message,
-    )
-    signed_message = account.sign_message(encoded_data)
-
-    data = {
-        "message": register_message,
-        "signature": signed_message.signature.hex(),
-        "userAddress": account.address,
-        "verifyingContract": ON_CHAIN_DOMAIN["verifyingContract"],
-    }
-    message = str(timestamp) + "POST" + "/v1/settle_pnl" + json.dumps(data)
-    orderly_signature = base64.urlsafe_b64encode(
-        orderly_key.sign(message.encode())
-    ).decode("utf-8")
-
-    res = requests.post(
-        "%s/v1/settle_pnl" % BASE_URL,
-        headers={
-            "Content-Type": "application/json",
-            "orderly-timestamp": str(timestamp),
-            "orderly-account-id": orderly_account_id,
-            "orderly-key": encode_key(orderly_key.public_key().public_bytes_raw()),
-            "orderly-signature": orderly_signature,
-        },
-        json=data,
-    )
-    response = json.loads(res.text)
-    print("settle_pnl:", response)
+        req = self._signer.sign_request(
+            Request(
+                "POST",
+                "%s/v1/settle_pnl" % self._config.base_url,
+                json={
+                    "message": register_message,
+                    "signature": signed_message.signature.hex(),
+                    "userAddress": self._account.address,
+                    "verifyingContract": get_on_chain_domain(self._config.chain_id)[
+                        "verifyingContract"
+                    ],
+                },
+            )
+        )
+        res = self._session.send(req)
+        response = json.loads(res.text)
+        print("settle_pnl:", response)

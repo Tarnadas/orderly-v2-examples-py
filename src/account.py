@@ -1,36 +1,31 @@
-import base64
 from datetime import datetime
+from eth_account import Account as EthAccount
 import json
-import math
-import requests
+from requests import Request, Session
 
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-
-from config import BASE_URL
-from util import encode_key
+from config import Config
+from signer import Signer
 
 
-def get_client_holding(orderly_account_id: str, orderly_key: Ed25519PrivateKey):
-    d = datetime.utcnow()
-    epoch = datetime(1970, 1, 1)
-    timestamp = math.trunc((d - epoch).total_seconds() * 1_000)
+class Account(object):
+    def __init__(
+        self,
+        config: Config,
+        session: Session,
+        signer: Signer,
+        account: EthAccount,
+    ) -> None:
+        self._config = config
+        self._session = session
+        self._signer = signer
+        self._account = account
 
-    message = str(timestamp) + "GET" + "/v1/client/holding"
-    orderly_signature = base64.urlsafe_b64encode(
-        orderly_key.sign(message.encode())
-    ).decode("utf-8")
+    def get_client_holding(self):
+        req = self._signer.sign_request(
+            Request("GET", "%s/v1/client/holding" % self._config.base_url)
+        )
+        res = self._session.send(req)
+        response = json.loads(res.text)
+        print("get_client_holding:", response)
 
-    res = requests.get(
-        "%s/v1/client/holding" % BASE_URL,
-        headers={
-            "Content-Type": "application/x-www-form-urlencoded",
-            "orderly-timestamp": str(timestamp),
-            "orderly-account-id": orderly_account_id,
-            "orderly-key": encode_key(orderly_key.public_key().public_bytes_raw()),
-            "orderly-signature": orderly_signature,
-        },
-    )
-    response = json.loads(res.text)
-    print("get_client_holding:", response)
-
-    return response["data"]["holding"]
+        return response["data"]["holding"]

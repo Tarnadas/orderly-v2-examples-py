@@ -1,19 +1,17 @@
 import json
-from base58 import b58encode
 from eth_account import Account
 import requests
-from web3 import Web3
 
-from config import BROKER_ID, CHAIN_ID
+from config import Config
 
 
-def mint_test_usdc(account: Account):
+def mint_test_usdc(config: Config, account: Account):
     res = requests.post(
         "https://testnet-operator-evm.orderly.org/v1/faucet/usdc",
         headers={"Content-Type": "application/json"},
         json={
-            "broker_id": BROKER_ID,
-            "chain_id": str(CHAIN_ID),
+            "broker_id": config.broker_id,
+            "chain_id": str(config.chain_id),
             "user_address": account.address,
         },
     )
