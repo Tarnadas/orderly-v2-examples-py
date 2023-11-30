@@ -73,4 +73,4 @@ class PnL(object):
         )
         res = self._session.send(req)
         response = json.loads(res.text)
-        print("settle_pnl:", response)
+        return response
