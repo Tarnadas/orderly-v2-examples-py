@@ -50,31 +50,35 @@ print("withdraw:", res)
 w3 = Web3(Web3.HTTPProvider("https://arbitrum-goerli.publicnode.com"))
 w3.middleware_onion.add(construct_sign_and_send_raw_middleware(account))
 
+usdc_address = Web3.to_checksum_address("0xfd064a18f3bf249cf1f87fc203e90d8f650f2d63")
+vault_address = Web3.to_checksum_address("0x0c554ddb6a9010ed1fd7e50d92559a06655da482")
+
 with open("./src/abi/NativeUSDC.json") as f:
     abi = json.load(f)
 usdc = w3.eth.contract(
-    address=Web3.to_checksum_address("0xfd064a18f3bf249cf1f87fc203e90d8f650f2d63"),
+    address=usdc_address,
     abi=abi,
 )
 balance = usdc.functions.balanceOf(account.address).call()
 print("USDC balance:", balance)
 
-vault_address = "0x0c554ddb6a9010ed1fd7e50d92559a06655da482"
+
+deposit_amount = 100000
+
+# approve USDC ERC-20 to be transferred to Vault contract
+usdc.functions.approve(vault_address, deposit_amount).transact(
+    {"from": account.address}
+)
+
 with open("./src/abi/Vault.json") as f:
     abi = json.load(f)
 vault = w3.eth.contract(
-    address=Web3.to_checksum_address(vault_address),
+    address=vault_address,
     abi=abi,
 )
 
-deposit_amount = 100000
 broker_hash = w3.keccak(text=config.broker_id)
 token_hash = w3.keccak(text="USDC")
-
-# approve USDC ERC-20 to be transferred to Vault contract
-usdc.functions.approve(
-    Web3.to_checksum_address(vault_address), deposit_amount
-).transact({"from": account.address})
 
 deposit_input = (
     bytes.fromhex(client._account_id[2:]),
@@ -82,6 +86,7 @@ deposit_input = (
     bytes.fromhex(token_hash.hex()[2:]),
     deposit_amount,
 )
+
 # get wei deposit fee for `deposit` call
 deposit_fee = vault.functions.getDepositFee(
     Web3.to_checksum_address(account.address),
